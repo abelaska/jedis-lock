@@ -17,12 +17,12 @@ public class JedisLock {
 	String lockKey;
 
 	/**
-	 * Lock expiration in miliseconds.
+	 * Lock expiration in milliseconds.
 	 */
 	int expireMsecs = 60 * 1000;
 
 	/**
-	 * Acquire timeout in miliseconds.
+	 * Acquire timeout in milliseconds.
 	 */
 	int timeoutMsecs = 10 * 1000;
 
@@ -46,8 +46,8 @@ public class JedisLock {
 	 * @param jedis
 	 * @param lockKey
 	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
-	 *            acquire timeout in miliseconds (default: 10000 msecs)
+	 * @param timeoutMsecs
+	 *            acquire timeout in milliseconds (default: 10000 msecs)
 	 */
 	public JedisLock(Jedis jedis, String lockKey, int timeoutMsecs) {
 		this(jedis, lockKey);
@@ -60,10 +60,10 @@ public class JedisLock {
 	 * @param jedis
 	 * @param lockKey
 	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
-	 *            acquire timeout in miliseconds (default: 10000 msecs)
+	 * @param timeoutMsecs
+	 *            acquire timeout in milliseconds (default: 10000 msecs)
 	 * @param expireMsecs
-	 *            lock expiration in miliseconds (default: 60000 msecs)
+	 *            lock expiration in milliseconds (default: 60000 msecs)
 	 */
 	public JedisLock(Jedis jedis, String lockKey, int timeoutMsecs, int expireMsecs) {
 		this(jedis, lockKey, timeoutMsecs);
@@ -85,7 +85,7 @@ public class JedisLock {
 	 * 
 	 * @param lockKey
 	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
+	 * @param timeoutMsecs
 	 *            acquire timeout in miliseconds (default: 10000 msecs)
 	 */
 	public JedisLock(String lockKey, int timeoutMsecs) {
@@ -97,7 +97,7 @@ public class JedisLock {
 	 * 
 	 * @param lockKey
 	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
+	 * @param timeoutMsecs
 	 *            acquire timeout in miliseconds (default: 10000 msecs)
 	 * @param expireMsecs
 	 *            lock expiration in miliseconds (default: 60000 msecs)
@@ -116,7 +116,6 @@ public class JedisLock {
 	/**
 	 * Acquire lock.
 	 * 
-	 * @param jedis
 	 * @return true if lock is acquired, false acquire timeouted
 	 * @throws InterruptedException
 	 *             in case of thread interruption
@@ -129,7 +128,7 @@ public class JedisLock {
 	 * Acquire lock.
 	 * 
 	 * @param jedis
-	 * @return true if lock is acquired, false acquire timeouted
+	 * @return true if lock is acquired, false acquire timed out
 	 * @throws InterruptedException
 	 *             in case of thread interruption
 	 */
@@ -165,14 +164,14 @@ public class JedisLock {
 	}
 
 	/**
-	 * Acqurired lock release.
+	 * Acquired lock release.
 	 */
 	public synchronized void release() {
 		release(jedis);
 	}
 
 	/**
-	 * Acqurired lock release.
+	 * Acquired lock release.
 	 */
 	public synchronized void release(Jedis jedis) {
 		if (locked) {
