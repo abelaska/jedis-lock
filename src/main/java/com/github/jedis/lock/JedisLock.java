@@ -9,24 +9,24 @@ import redis.clients.jedis.Jedis;
  */
 public class JedisLock {
 
-	Jedis jedis;
+	private Jedis jedis;
 
 	/**
 	 * Lock key path.
 	 */
-	String lockKey;
+	private String lockKey;
 
 	/**
 	 * Lock expiration in milliseconds.
 	 */
-	int expireMsecs = 60 * 1000;
+	private int expireMsecs = 60 * 1000;
 
 	/**
 	 * Acquire timeout in milliseconds.
 	 */
-	int timeoutMsecs = 10 * 1000;
+	private int timeoutMsecs = 10 * 1000;
 
-	boolean locked = false;
+	private boolean locked = false;
 
 	/**
 	 * Detailed constructor with default acquire timeout 10000 msecs and lock expiration of 60000 msecs.
