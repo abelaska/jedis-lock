@@ -2,6 +2,9 @@ package com.github.jedis.lock;
 
 import redis.clients.jedis.Jedis;
 
+import java.util.Arrays;
+import java.util.UUID;
+
 /**
  * Redis distributed lock implementation.
  * 
@@ -9,12 +12,24 @@ import redis.clients.jedis.Jedis;
  */
 public class JedisLock {
 
+    /**
+     * Lua script which allows for an atomic delete on the lock only
+     * if it is owned by the lock. This prevents locks stealing from others.
+     */
+    private final static String DELETE_IF_OWNED =
+            "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+            "return redis.call('del', KEYS[1]) " +
+            "else " +
+            "return 0 " +
+            "end";
+
 	private Jedis jedis;
 
 	/**
 	 * Lock key path.
 	 */
 	private String lockKey;
+    private String token;
 
 	/**
 	 * Lock expiration in milliseconds.
@@ -38,7 +53,8 @@ public class JedisLock {
 	public JedisLock(Jedis jedis, String lockKey) {
 		this.jedis = jedis;
 		this.lockKey = lockKey;
-	}
+        this.token = UUID.randomUUID().toString();
+    }
 
 	/**
 	 * Detailed constructor with default lock expiration of 60000 msecs.
@@ -135,25 +151,11 @@ public class JedisLock {
 	public synchronized boolean acquire(Jedis jedis) throws InterruptedException {
 		int timeout = timeoutMsecs;
 		while (timeout >= 0) {
-			long expires = System.currentTimeMillis() + expireMsecs + 1;
-			String expiresStr = String.valueOf(expires);
 
-			if (jedis.setnx(lockKey, expiresStr) == 1) {
+            if ("OK".equals(jedis.set(lockKey, token, "NX", "PX", expireMsecs))) {
 				// lock acquired
 				locked = true;
 				return true;
-			}
-
-			String currentValueStr = jedis.get(lockKey);
-			if (currentValueStr != null && Long.parseLong(currentValueStr) < System.currentTimeMillis()) {
-				// lock is expired
-
-				String oldValueStr = jedis.getSet(lockKey, expiresStr);
-				if (oldValueStr != null && oldValueStr.equals(currentValueStr)) {
-					// lock acquired
-					locked = true;
-					return true;
-				}
 			}
 
 			timeout -= 100;
@@ -175,7 +177,8 @@ public class JedisLock {
 	 */
 	public synchronized void release(Jedis jedis) {
 		if (locked) {
-			jedis.del(lockKey);
+            // prevent threads from releasing locks which they don't own
+            jedis.eval(DELETE_IF_OWNED, Arrays.asList(lockKey), Arrays.asList(token));
 			locked = false;
 		}
 	}
