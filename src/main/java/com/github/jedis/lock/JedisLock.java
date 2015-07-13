@@ -3,181 +3,158 @@ package com.github.jedis.lock;
 import redis.clients.jedis.Jedis;
 
 /**
- * Redis distributed lock implementation.
+ * Redis distributed lock implementation
+ * (fork by  Bruno Bossola <bbossola@gmail.com>)
  * 
  * @author Alois Belaska <alois.belaska@gmail.com>
  */
 public class JedisLock {
 
-	Jedis jedis;
+    private static final int ONE_SECOND = 1000;
 
-	/**
-	 * Lock key path.
-	 */
-	String lockKey;
+    public static final int DEFAULT_EXPIRY_TIME_MILLIS = Integer.getInteger("com.github.jedis.lock.expiry.millis", 60 * ONE_SECOND);
+    public static final int DEFAULT_ACQUIRE_TIMEOUT_MILLIS = Integer.getInteger("com.github.jedis.lock.acquiry.millis", 10 * ONE_SECOND);
+    public static final int DEFAULT_ACQUIRY_RESOLUTION_MILLIS = Integer.getInteger("com.github.jedis.lock.acquiry.resolution.millis", 100);
 
-	/**
-	 * Lock expiration in miliseconds.
-	 */
-	int expireMsecs = 60 * 1000;
+    private final Jedis jedis;
 
-	/**
-	 * Acquire timeout in miliseconds.
-	 */
-	int timeoutMsecs = 10 * 1000;
+    private final String lockKeyPath;
 
-	boolean locked = false;
+    private final int lockExpiryInMillis;
+    private final int acquiryTimeoutInMillis;
 
-	/**
-	 * Detailed constructor with default acquire timeout 10000 msecs and lock expiration of 60000 msecs.
-	 * 
-	 * @param jedis
-	 * @param lockKey
-	 *            lock key (ex. account:1, ...)
-	 */
-	public JedisLock(Jedis jedis, String lockKey) {
-		this.jedis = jedis;
-		this.lockKey = lockKey;
-	}
+    private Long timoutExpiryTime = null;
 
-	/**
-	 * Detailed constructor with default lock expiration of 60000 msecs.
-	 * 
-	 * @param jedis
-	 * @param lockKey
-	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
-	 *            acquire timeout in miliseconds (default: 10000 msecs)
-	 */
-	public JedisLock(Jedis jedis, String lockKey, int timeoutMsecs) {
-		this(jedis, lockKey);
-		this.timeoutMsecs = timeoutMsecs;
-	}
+    /**
+     * Detailed constructor with default acquire timeout 10000 msecs and lock
+     * expiration of 60000 msecs.
+     * 
+     * @param jedis
+     * @param lockKey
+     *            lock key (ex. account:1, ...)
+     */
+    public JedisLock(Jedis jedis, String lockKey) {
+        this(jedis, lockKey, DEFAULT_ACQUIRE_TIMEOUT_MILLIS, DEFAULT_EXPIRY_TIME_MILLIS);
+    }
 
-	/**
-	 * Detailed constructor.
-	 * 
-	 * @param jedis
-	 * @param lockKey
-	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
-	 *            acquire timeout in miliseconds (default: 10000 msecs)
-	 * @param expireMsecs
-	 *            lock expiration in miliseconds (default: 60000 msecs)
-	 */
-	public JedisLock(Jedis jedis, String lockKey, int timeoutMsecs, int expireMsecs) {
-		this(jedis, lockKey, timeoutMsecs);
-		this.expireMsecs = expireMsecs;
-	}
+    /**
+     * Detailed constructor with default lock expiration of 60000 msecs.
+     * 
+     * @param jedis
+     * @param lockKey
+     *            lock key (ex. account:1, ...)
+     * @param acquireTimeoutMillis
+     *            acquire timeout in miliseconds (default: 10000 msecs)
+     */
+    public JedisLock(Jedis jedis, String lockKey, int acquireTimeoutMillis) {
+        this(jedis, lockKey, acquireTimeoutMillis, DEFAULT_EXPIRY_TIME_MILLIS);
+    }
 
-	/**
-	 * Detailed constructor with default acquire timeout 10000 msecs and lock expiration of 60000 msecs.
-	 * 
-	 * @param lockKey
-	 *            lock key (ex. account:1, ...)
-	 */
-	public JedisLock(String lockKey) {
-		this(null, lockKey);
-	}
+    /**
+     * Detailed constructor.
+     * 
+     * @param jedis
+     * @param lockKey
+     *            lock key (ex. account:1, ...)
+     * @param acquireTimeoutMillis
+     *            acquire timeout in miliseconds (default: 10000 msecs)
+     * @param expiryTimeMillis
+     *            lock expiration in miliseconds (default: 60000 msecs)
+     */
+    public JedisLock(Jedis jedis, String lockKey, int acquireTimeoutMillis, int expiryTimeMillis) {
+        this.jedis = jedis;
+        this.lockKeyPath = lockKey;
+        this.acquiryTimeoutInMillis = acquireTimeoutMillis;
+        this.lockExpiryInMillis = expiryTimeMillis;
+    }
 
-	/**
-	 * Detailed constructor with default lock expiration of 60000 msecs.
-	 * 
-	 * @param lockKey
-	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
-	 *            acquire timeout in miliseconds (default: 10000 msecs)
-	 */
-	public JedisLock(String lockKey, int timeoutMsecs) {
-		this(null, lockKey, timeoutMsecs);
-	}
+    /**
+     * @return lock key path
+     */
+    public String getLockKeyPath() {
+        return lockKeyPath;
+    }
 
-	/**
-	 * Detailed constructor.
-	 * 
-	 * @param lockKey
-	 *            lock key (ex. account:1, ...)
-	 * @param timeoutSecs
-	 *            acquire timeout in miliseconds (default: 10000 msecs)
-	 * @param expireMsecs
-	 *            lock expiration in miliseconds (default: 60000 msecs)
-	 */
-	public JedisLock(String lockKey, int timeoutMsecs, int expireMsecs) {
-		this(null, lockKey, timeoutMsecs, expireMsecs);
-	}
+    /**
+     * Acquire lock.
+     * 
+     * @param jedis
+     * @return true if lock is acquired, false acquire timeouted
+     * @throws InterruptedException
+     *             in case of thread interruption
+     */
+    public synchronized boolean acquire() throws InterruptedException {
+        return acquire(jedis);
+    }
 
-	/**
-	 * @return lock key
-	 */
-	public String getLockKey() {
-		return lockKey;
-	}
+    /**
+     * Acquire lock.
+     * 
+     * @param jedis
+     * @return true if lock is acquired, false acquire timeouted
+     * @throws InterruptedException
+     *             in case of thread interruption
+     */
+    protected synchronized boolean acquire(Jedis jedis) throws InterruptedException {
+        int timeout = acquiryTimeoutInMillis;
+        while (timeout >= 0) {
+            long expires = System.currentTimeMillis() + lockExpiryInMillis + 1;
+            String expiresStr = String.valueOf(expires);
 
-	/**
-	 * Acquire lock.
-	 * 
-	 * @param jedis
-	 * @return true if lock is acquired, false acquire timeouted
-	 * @throws InterruptedException
-	 *             in case of thread interruption
-	 */
-	public synchronized boolean acquire() throws InterruptedException {
-		return acquire(jedis);
-	}
+            if (jedis.setnx(lockKeyPath, expiresStr) == 1) {
+                // lock acquired
+                timoutExpiryTime = expires;
+                return true;
+            }
 
-	/**
-	 * Acquire lock.
-	 * 
-	 * @param jedis
-	 * @return true if lock is acquired, false acquire timeouted
-	 * @throws InterruptedException
-	 *             in case of thread interruption
-	 */
-	public synchronized boolean acquire(Jedis jedis) throws InterruptedException {
-		int timeout = timeoutMsecs;
-		while (timeout >= 0) {
-			long expires = System.currentTimeMillis() + expireMsecs + 1;
-			String expiresStr = String.valueOf(expires);
+            String currentValueStr = jedis.get(lockKeyPath);
+            if (currentValueStr != null && Long.parseLong(currentValueStr) < System.currentTimeMillis()) {
+                // lock is expired
+                String oldValueStr = jedis.getSet(lockKeyPath, expiresStr);
+                if (oldValueStr != null && oldValueStr.equals(currentValueStr)) {
+                    // lock acquired
+                    timoutExpiryTime = expires;
+                    return true;
+                }
+            }
 
-			if (jedis.setnx(lockKey, expiresStr) == 1) {
-				// lock acquired
-				locked = true;
-				return true;
-			}
+            timeout -= DEFAULT_ACQUIRY_RESOLUTION_MILLIS;
+            Thread.sleep(DEFAULT_ACQUIRY_RESOLUTION_MILLIS);
+        }
 
-			String currentValueStr = jedis.get(lockKey);
-			if (currentValueStr != null && Long.parseLong(currentValueStr) < System.currentTimeMillis()) {
-				// lock is expired
+        return false;
+    }
 
-				String oldValueStr = jedis.getSet(lockKey, expiresStr);
-				if (oldValueStr != null && oldValueStr.equals(currentValueStr)) {
-					// lock acquired
-					locked = true;
-					return true;
-				}
-			}
+    /**
+     * Acquired lock release.
+     */
+    public synchronized void release() {
+        release(jedis);
+    }
 
-			timeout -= 100;
-			Thread.sleep(100);
-		}
+    /**
+     * Acquired lock release.
+     */
+    protected synchronized void release(Jedis jedis) {
+        if (isLocked()) {
+            jedis.del(lockKeyPath);
+            timoutExpiryTime = null;
+        }
+    }
 
-		return false;
-	}
-
-	/**
-	 * Acqurired lock release.
-	 */
-	public synchronized void release() {
-		release(jedis);
-	}
-
-	/**
-	 * Acqurired lock release.
-	 */
-	public synchronized void release(Jedis jedis) {
-		if (locked) {
-			jedis.del(lockKey);
-			locked = false;
-		}
-	}
+    /**
+     * Check if owns the lock
+     * @return  true if lock owned
+     */
+    public synchronized boolean isLocked() {
+        return timoutExpiryTime != null;
+    }
+    
+    /**
+     * Returns the expiry time of this lock
+     * @return  the expiry time in millis (or null if not locked)
+     */
+    public synchronized long getExpiryTimeInMillis() {
+        return timoutExpiryTime;
+    }
 }
