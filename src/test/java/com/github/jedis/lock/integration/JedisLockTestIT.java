@@ -1,4 +1,4 @@
-package com.github.jedis.lock;
+package com.github.jedis.lock.integration;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -10,9 +10,17 @@ import org.junit.Test;
 
 import redis.clients.jedis.Jedis;
 
-import com.github.jedis.lock.HostAndPortUtil.HostAndPort;
+import com.github.jedis.lock.JedisLock;
+import com.github.jedis.lock.integration.HostAndPortUtil.HostAndPort;
 
-public class JedisLockTest {
+/**
+ * Integration test - please see HostAndPortUtil to set where your server is
+ *
+ * To launch of course:
+ * mvn failsafe:integration-test
+ *
+ */
+public class JedisLockTestIT {
 
 	private static HostAndPort redis1 = HostAndPortUtil.getRedisServers().get(0);
 

@@ -1,10 +1,13 @@
-package com.github.jedis.lock;
+package com.github.jedis.lock.integration;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import redis.clients.jedis.Protocol;
 
+/**
+ * Utilty class for integration tests
+ */
 public class HostAndPortUtil {
     private static List<HostAndPort> hostAndPortList = new ArrayList<HostAndPortUtil.HostAndPort>(
             2);
