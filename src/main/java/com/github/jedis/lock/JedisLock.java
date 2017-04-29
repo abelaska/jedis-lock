@@ -2,7 +2,7 @@ package com.github.jedis.lock;
 
 import java.util.UUID;
 
-import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisCommands;
 
 /**
  * Redis distributed lock implementation
@@ -10,7 +10,7 @@ import redis.clients.jedis.Jedis;
  * 
  * @author Alois Belaska <alois.belaska@gmail.com>
  */
-public class JedisLock {
+public class JedisLock<T extends JedisCommands> {
 
     private static final Lock NO_LOCK = new Lock(new UUID(0l,0l), 0l);
     
@@ -20,7 +20,7 @@ public class JedisLock {
     public static final int DEFAULT_ACQUIRE_TIMEOUT_MILLIS = Integer.getInteger("com.github.jedis.lock.acquiry.millis", 10 * ONE_SECOND);
     public static final int DEFAULT_ACQUIRY_RESOLUTION_MILLIS = Integer.getInteger("com.github.jedis.lock.acquiry.resolution.millis", 100);
 
-    private final Jedis jedis;
+    private final T jedis;
 
     private final String lockKeyPath;
 
@@ -78,10 +78,11 @@ public class JedisLock {
      * expiration of 60000 msecs.
      * 
      * @param jedis
+     *            Jedis or JedisCluster instance
      * @param lockKey
      *            lock key (ex. account:1, ...)
      */
-    public JedisLock(Jedis jedis, String lockKey) {
+    public JedisLock(T jedis, String lockKey) {
         this(jedis, lockKey, DEFAULT_ACQUIRE_TIMEOUT_MILLIS, DEFAULT_EXPIRY_TIME_MILLIS);
     }
 
@@ -89,12 +90,13 @@ public class JedisLock {
      * Detailed constructor with default lock expiration of 60000 msecs.
      * 
      * @param jedis
+     *            Jedis or JedisCluster instance
      * @param lockKey
      *            lock key (ex. account:1, ...)
      * @param acquireTimeoutMillis
      *            acquire timeout in miliseconds (default: 10000 msecs)
      */
-    public JedisLock(Jedis jedis, String lockKey, int acquireTimeoutMillis) {
+    public JedisLock(T jedis, String lockKey, int acquireTimeoutMillis) {
         this(jedis, lockKey, acquireTimeoutMillis, DEFAULT_EXPIRY_TIME_MILLIS);
     }
 
@@ -102,6 +104,7 @@ public class JedisLock {
      * Detailed constructor.
      * 
      * @param jedis
+     *            Jedis or JedisCluster instance
      * @param lockKey
      *            lock key (ex. account:1, ...)
      * @param acquireTimeoutMillis
@@ -109,7 +112,7 @@ public class JedisLock {
      * @param expiryTimeMillis
      *            lock expiration in miliseconds (default: 60000 msecs)
      */
-    public JedisLock(Jedis jedis, String lockKey, int acquireTimeoutMillis, int expiryTimeMillis) {
+    public JedisLock(T jedis, String lockKey, int acquireTimeoutMillis, int expiryTimeMillis) {
         this(jedis, lockKey, acquireTimeoutMillis, expiryTimeMillis, UUID.randomUUID());
     }
 
@@ -117,6 +120,7 @@ public class JedisLock {
      * Detailed constructor.
      * 
      * @param jedis
+     *            Jedis or JedisCluster instance
      * @param lockKey
      *            lock key (ex. account:1, ...)
      * @param acquireTimeoutMillis
@@ -126,7 +130,7 @@ public class JedisLock {
      * @param uuid
      *            unique identification of this lock
      */
-    public JedisLock(Jedis jedis, String lockKey, int acquireTimeoutMillis, int expiryTimeMillis, UUID uuid) {
+    public JedisLock(T jedis, String lockKey, int acquireTimeoutMillis, int expiryTimeMillis, UUID uuid) {
         this.jedis = jedis;
         this.lockKeyPath = lockKey;
         this.acquiryTimeoutInMillis = acquireTimeoutMillis;
@@ -163,11 +167,12 @@ public class JedisLock {
      * Acquire lock.
      * 
      * @param jedis
+     *            Jedis or JedisCluster instance
      * @return true if lock is acquired, false acquire timeouted
      * @throws InterruptedException
      *             in case of thread interruption
      */
-    protected synchronized boolean acquire(Jedis jedis) throws InterruptedException {
+    protected synchronized boolean acquire(T jedis) throws InterruptedException {
         int timeout = acquiryTimeoutInMillis;
         while (timeout >= 0) {
 
@@ -220,8 +225,9 @@ public class JedisLock {
     /**
      * Acquired lock release.
      * @param jedis
+     *            Jedis or JedisCluster instance
      */
-    protected synchronized void release(Jedis jedis) {
+    protected synchronized void release(T jedis) {
         if (isLocked()) {
             jedis.del(lockKeyPath);
             this.lock = null;
