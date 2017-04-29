@@ -20,7 +20,7 @@ Or use it as a maven dependency:
 To use it just:
 
     Jedis jedis = new Jedis("localhost");
-    JedisLock<Jedis> lock = new JedisLock(jedis, "lockname", 10000, 30000);
+    JedisLock lock = new JedisLock(jedis, "lockname", 10000, 30000);
     lock.acquire();
     try {
       // do some stuff
@@ -28,11 +28,6 @@ To use it just:
     finally {
       lock.release();
     }
-
-And to use it with `JedisCluster` everything is same except the `JedisLock` declaration:
-    
-    Jedis jedis = new Jedis("localhost");
-    JedisLock<JedisCluster> lock = new JedisLock(jedis, "lockname", 10000, 30000);
 
 That's it.
 
