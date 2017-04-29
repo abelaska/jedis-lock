@@ -29,6 +29,11 @@ To use it just:
       lock.release();
     }
 
+To use it with cluster:
+
+    JedisCluster jedisCluster = new JedisCluster( /* Set<HostAndPort> hostAndrPortSet */ );
+    JedisLock lock = new JedisLock(jedisCluster, "lockname", 10000, 30000);
+
 That's it.
 
 ## License
