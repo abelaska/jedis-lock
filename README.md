@@ -11,8 +11,11 @@ Jedis-lock is easy to use and simple implementation of distributed lock using Re
 
 ## How do I use it?
 
-You can download the latests build at:
-    http://github.com/kaidul/jedis-lock/downloads
+```shell
+mvn clean package
+```
+
+The binaries will be created under `\target` directory.
 
 Or use it as a maven dependency:
 
