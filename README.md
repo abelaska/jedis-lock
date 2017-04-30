@@ -1,6 +1,6 @@
 # Jedis-lock
 
-According to owner (Thanks for this project), the [master](https://github.com/abelaska/jedis-lock) branch is no longer maintained/pull requests are not merged by the project owner. This fork has following additional features: 
+According to owner (Thanks for this project), the [master](https://github.com/abelaska/jedis-lock) branch is no longer maintained/pull requests are not merged by the project owner anymore. This fork is now maintained and has following additional features: 
 + [Improvments of pending pull requests](https://github.com/abelaska/jedis-lock/pulls)
 + New `SET` API in place of `SETNX`
 + Lock ownership safety on `release()`
