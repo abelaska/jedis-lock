@@ -3,7 +3,7 @@
 According to owner (Thanks for this project), the [master](https://github.com/abelaska/jedis-lock) branch is no longer maintained/pull requests are not merged by the project owner anymore. This fork is now maintained and has following additional features: 
 + [Improvments of pending pull requests](https://github.com/abelaska/jedis-lock/pulls)
 + New `SET` API in place of `SETNX`
-+ Lock ownership safety on `release()`
++ Lock ownership safety/atomicity using LUA script on `release()`
 + Locking support for `JedisCluster`
 
 
