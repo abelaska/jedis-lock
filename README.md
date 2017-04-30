@@ -17,16 +17,6 @@ mvn clean package
 
 The binaries will be created under `\target` directory.
 
-Or use it as a maven dependency:
-
-    <dependency>
-        <groupId>com.github.jedis-lock</groupId>
-        <artifactId>jedis-lock</artifactId>
-        <version>2.0.0</version>
-        <type>jar</type>
-        <scope>compile</scope>
-    </dependency>
-
 To use it just:
 
     Jedis jedis = new Jedis("localhost");
