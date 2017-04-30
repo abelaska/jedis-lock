@@ -1,18 +1,28 @@
 package com.github.jedis.lock;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import redis.clients.jedis.JedisCommands;
+import redis.clients.jedis.ScriptingCommands;
 
 /**
- * Redis distributed lock implementation
- * (fork by  Bruno Bossola <bbossola@gmail.com>)
  * 
- * @author Alois Belaska <alois.belaska@gmail.com>
+ * @author Alois Belaska
+ * @author kaidul
  */
-public class JedisLock<T extends JedisCommands> {
-
-    private static final Lock NO_LOCK = new Lock(new UUID(0l,0l), 0l);
+public class JedisLock<T extends JedisCommands & ScriptingCommands> {
+  
+    /**
+     * Lua script which allows for an atomic delete on the lock only
+     * if it is owned by the lock. This prevents locks stealing from others.
+     */
+    private final static String DELETE_IF_OWNED_LUA_SNIPPET =
+            "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+            "return redis.call('del', KEYS[1]) " +
+            "else " +
+            "return 0 " +
+            "end";
     
     private static final int ONE_SECOND = 1000;
 
@@ -22,55 +32,13 @@ public class JedisLock<T extends JedisCommands> {
 
     private final T jedis;
 
-    private final String lockKeyPath;
+    private final String lockKey;
 
     private final int lockExpiryInMillis;
     private final int acquiryTimeoutInMillis;
     private final UUID lockUUID;
-
-    private Lock lock = null;
-
-    protected static class Lock {
-        private UUID uuid;
-        private long expiryTime;
-
-        protected Lock(UUID uuid, long expiryTimeInMillis) {
-            this.uuid = uuid;
-            this.expiryTime = expiryTimeInMillis;
-        }
-        
-        protected static Lock fromString(String text) {
-            try {
-                String[] parts = text.split(":");
-                UUID theUUID = UUID.fromString(parts[0]);
-                long theTime = Long.parseLong(parts[1]);
-                return new Lock(theUUID, theTime);
-            } catch (Exception any) {
-                return NO_LOCK;
-            }
-        }
-        
-        public UUID getUUID() {
-            return uuid;
-        }
-
-        public long getExpiryTime() {
-            return expiryTime;
-        }
-        
-        @Override
-        public String toString() {
-            return uuid.toString()+":"+expiryTime;  
-        }
-
-        boolean isExpired() {
-            return getExpiryTime() < System.currentTimeMillis();
-        }
-
-        boolean isExpiredOrMine(UUID otherUUID) {
-            return this.isExpired() || this.getUUID().equals(otherUUID);
-        }
-    }
+    
+    private boolean locked;
     
     
     /**
@@ -132,10 +100,10 @@ public class JedisLock<T extends JedisCommands> {
      */
     public JedisLock(T jedis, String lockKey, int acquireTimeoutMillis, int expiryTimeMillis, UUID uuid) {
         this.jedis = jedis;
-        this.lockKeyPath = lockKey;
+        this.lockKey = lockKey;
         this.acquiryTimeoutInMillis = acquireTimeoutMillis;
         this.lockExpiryInMillis = expiryTimeMillis+1;
-        this.lockUUID = uuid;;
+        this.lockUUID = uuid;
     }
     
     /**
@@ -146,10 +114,10 @@ public class JedisLock<T extends JedisCommands> {
     }
 
     /**
-     * @return lock key path
+     * @return lock key
      */
-    public String getLockKeyPath() {
-        return lockKeyPath;
+    public String getLockKey() {
+        return lockKey;
     }
 
     /**
@@ -168,7 +136,7 @@ public class JedisLock<T extends JedisCommands> {
      * 
      * @param jedis
      *            Jedis or JedisCluster instance
-     * @return true if lock is acquired, false acquire timeouted
+     * @return true if lock is acquired, false acquire timeout
      * @throws InterruptedException
      *             in case of thread interruption
      */
@@ -176,43 +144,14 @@ public class JedisLock<T extends JedisCommands> {
         int timeout = acquiryTimeoutInMillis;
         while (timeout >= 0) {
 
-            final Lock newLock = asLock(System.currentTimeMillis() + lockExpiryInMillis);
-            if (jedis.setnx(lockKeyPath, newLock.toString()) == 1) {
-                this.lock = newLock;
-                return true;
+            if ("OK".equals(jedis.set(lockKey, lockUUID.toString(), "NX", "PX", lockExpiryInMillis))) {
+                return this.locked = true;
             }
-
-            final String currentValueStr = jedis.get(lockKeyPath);
-            final Lock currentLock = Lock.fromString(currentValueStr);
-            if (currentLock.isExpiredOrMine(lockUUID)) {
-                String oldValueStr = jedis.getSet(lockKeyPath, newLock.toString());
-                if (oldValueStr != null && oldValueStr.equals(currentValueStr)) {
-                    this.lock = newLock;
-                    return true;
-                }
-            }
-
             timeout -= DEFAULT_ACQUIRY_RESOLUTION_MILLIS;
             Thread.sleep(DEFAULT_ACQUIRY_RESOLUTION_MILLIS);
         }
 
         return false;
-    }
-
-    /**
-     * Renew lock.
-     * 
-     * @return true if lock is acquired, false otherwise
-     * @throws InterruptedException
-     *             in case of thread interruption
-     */
-    public boolean renew() throws InterruptedException {
-        final Lock lock = Lock.fromString(jedis.get(lockKeyPath));
-        if (!lock.isExpiredOrMine(lockUUID)) {
-            return false;
-        }
-
-        return acquire(jedis);
     }
 
     /**
@@ -229,8 +168,9 @@ public class JedisLock<T extends JedisCommands> {
      */
     protected synchronized void release(T jedis) {
         if (isLocked()) {
-            jedis.del(lockKeyPath);
-            this.lock = null;
+            jedis.del(lockKey);
+            jedis.eval(DELETE_IF_OWNED_LUA_SNIPPET, Arrays.asList(lockKey), Arrays.asList(lockUUID.toString()));
+            this.locked = false;
         }
     }
 
@@ -239,20 +179,21 @@ public class JedisLock<T extends JedisCommands> {
      * @return  true if lock owned
      */
     public synchronized boolean isLocked() {
-        return this.lock != null;
+        return this.locked;
     }
     
     /**
-     * Returns the expiry time of this lock
-     * @return  the expiry time in millis (or null if not locked)
+     * Check if the lock is owned by remote owner
+     * @return  true if lock owned
      */
-    public synchronized long getLockExpiryTimeInMillis() {
-        return this.lock.getExpiryTime();
-    }
-    
-    
-    private Lock asLock(long expires) {
-        return new Lock(lockUUID, expires);
+    public synchronized boolean isRemoteLocked() {
+        if(this.isLocked()) {
+          return false;
+        }
+        if(jedis.get(lockKey) == null) {
+          return false;
+        }
+        return true;
     }
 
 
