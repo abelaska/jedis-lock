@@ -6,7 +6,6 @@ import java.util.UUID;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisCommands;
-import redis.clients.jedis.ScriptingCommands;
 
 /**
  * 
