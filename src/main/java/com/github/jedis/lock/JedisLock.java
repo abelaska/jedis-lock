@@ -39,7 +39,7 @@ public class JedisLock<T extends JedisCommands> {
     private final int acquiryTimeoutInMillis;
     private final UUID lockUUID;
     
-    private boolean locked;
+    private boolean isLocked;
     
     
     /**
@@ -105,6 +105,7 @@ public class JedisLock<T extends JedisCommands> {
         this.acquiryTimeoutInMillis = acquireTimeoutMillis;
         this.lockExpiryInMillis = expiryTimeMillis+1;
         this.lockUUID = uuid;
+        this.isLocked = false;
     }
     
     /**
@@ -142,16 +143,43 @@ public class JedisLock<T extends JedisCommands> {
      *             in case of thread interruption
      */
     protected synchronized boolean acquire(T jedis) throws InterruptedException {
+        if(isLocked()) {
+            return renew();
+        }
         int timeout = acquiryTimeoutInMillis;
         while (timeout >= 0) {
-
             if ("OK".equals(jedis.set(lockKey, lockUUID.toString(), "NX", "PX", lockExpiryInMillis))) {
-                return this.locked = true;
+                return this.isLocked = true;
             }
             timeout -= DEFAULT_ACQUIRY_RESOLUTION_MILLIS;
             Thread.sleep(DEFAULT_ACQUIRY_RESOLUTION_MILLIS);
         }
 
+        return false;
+    }
+    
+    /**
+     * Renew lock.
+     * 
+     * @return false if lock is not currently owned
+     *         false if lock is currently owned by remote owner
+     *         true otherwise
+     * @throws InterruptedException
+     *             in case of thread interruption
+     */
+    public synchronized boolean renew() throws InterruptedException {
+        if(!isLocked() || isRemoteLocked()) {
+          return false;
+        }
+        int timeout = acquiryTimeoutInMillis;
+        while (timeout >= 0) {
+            if ("OK".equals(jedis.set(lockKey, lockUUID.toString(), "XX", "PX", lockExpiryInMillis))) {
+                return true;
+            }
+            timeout -= DEFAULT_ACQUIRY_RESOLUTION_MILLIS;
+            Thread.sleep(DEFAULT_ACQUIRY_RESOLUTION_MILLIS);
+        }
+        
         return false;
     }
 
@@ -175,7 +203,7 @@ public class JedisLock<T extends JedisCommands> {
             else if(jedis instanceof JedisCluster) {
                 ((JedisCluster) jedis).eval(DELETE_IF_OWNED_LUA_SNIPPET, Arrays.asList(lockKey), Arrays.asList(lockUUID.toString()));
             }
-            this.locked = false;
+            this.isLocked = false;
         }
     }
 
@@ -184,7 +212,7 @@ public class JedisLock<T extends JedisCommands> {
      * @return  true if lock owned
      */
     public synchronized boolean isLocked() {
-        return this.locked;
+        return this.isLocked;
     }
     
     /**
@@ -193,10 +221,10 @@ public class JedisLock<T extends JedisCommands> {
      */
     public synchronized boolean isRemoteLocked() {
         if(this.isLocked()) {
-          return false;
+            return false;
         }
         if(jedis.get(lockKey) == null) {
-          return false;
+            return false;
         }
         return true;
     }
