@@ -63,7 +63,7 @@ public class JedisLock<T extends JedisCommands> {
      * @param lockKey
      *            lock key (ex. account:1, ...)
      * @param acquireTimeoutMillis
-     *            acquire timeout in miliseconds (default: 10000 msecs)
+     *            acquire timeout in milliseconds (default: 10000 msecs)
      */
     public JedisLock(T jedis, String lockKey, int acquireTimeoutMillis) {
         this(jedis, lockKey, acquireTimeoutMillis, DEFAULT_EXPIRY_TIME_MILLIS);
@@ -77,9 +77,9 @@ public class JedisLock<T extends JedisCommands> {
      * @param lockKey
      *            lock key (ex. account:1, ...)
      * @param acquireTimeoutMillis
-     *            acquire timeout in miliseconds (default: 10000 msecs)
+     *            acquire timeout in milliseconds (default: 10000 msecs)
      * @param expiryTimeMillis
-     *            lock expiration in miliseconds (default: 60000 msecs)
+     *            lock expiration in milliseconds (default: 60000 msecs)
      */
     public JedisLock(T jedis, String lockKey, int acquireTimeoutMillis, int expiryTimeMillis) {
         this(jedis, lockKey, acquireTimeoutMillis, expiryTimeMillis, UUID.randomUUID());
@@ -93,9 +93,9 @@ public class JedisLock<T extends JedisCommands> {
      * @param lockKey
      *            lock key (ex. account:1, ...)
      * @param acquireTimeoutMillis
-     *            acquire timeout in miliseconds (default: 10000 msecs)
+     *            acquire timeout in milliseconds (default: 10000 msecs)
      * @param expiryTimeMillis
-     *            lock expiration in miliseconds (default: 60000 msecs)
+     *            lock expiration in milliseconds (default: 60000 msecs)
      * @param uuid
      *            unique identification of this lock
      */
@@ -125,7 +125,7 @@ public class JedisLock<T extends JedisCommands> {
     /**
      * Acquire lock.
      * 
-     * @return true if lock is acquired, false acquire timeouted
+     * @return true if lock is acquired, false acquire timeout
      * @throws InterruptedException
      *             in case of thread interruption
      */
