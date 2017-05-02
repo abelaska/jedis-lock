@@ -11,7 +11,7 @@
 	<groupId>com.github.jedis-lock</groupId>
 	<artifactId>jedis-lock</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.1-SNAPSHOT</version>
+	<version>2.0.1-SNAPSHOT</version>
 	<name>Jedis Lock</name>
 	<description>Jedis distributed lock support</description>
 	<inceptionYear>2011</inceptionYear>
@@ -44,6 +44,14 @@
 				<role>Project Lead</role>
 			</roles>
 		</developer>
+		<developer>
+			<name>Kaidul Islam</name>
+			<id>kaidul</id>
+			<email>kaidulislam90@gmail.com</email>
+			<roles>
+				<role>Contributor</role>
+			</roles>
+		</developer>
 	</developers>
 
 	<properties>
@@ -56,7 +64,7 @@
 		<dependency>
 			<groupId>redis.clients</groupId>
 			<artifactId>jedis</artifactId>
-			<version>1.5.2</version>
+			<version>2.9.0</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
