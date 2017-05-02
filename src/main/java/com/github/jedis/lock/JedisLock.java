@@ -169,7 +169,6 @@ public class JedisLock<T extends JedisCommands> {
      */
     protected synchronized void release(T jedis) {
         if (isLocked()) {
-            jedis.del(lockKey);
             if(jedis instanceof Jedis) {
                 ((Jedis) jedis).eval(DELETE_IF_OWNED_LUA_SNIPPET, Arrays.asList(lockKey), Arrays.asList(lockUUID.toString()));
             }
