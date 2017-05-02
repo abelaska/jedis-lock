@@ -3,6 +3,8 @@ package com.github.jedis.lock;
 import java.util.Arrays;
 import java.util.UUID;
 
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisCommands;
 import redis.clients.jedis.ScriptingCommands;
 
@@ -11,7 +13,7 @@ import redis.clients.jedis.ScriptingCommands;
  * @author Alois Belaska
  * @author kaidul
  */
-public class JedisLock<T extends JedisCommands & ScriptingCommands> {
+public class JedisLock<T extends JedisCommands> {
   
     /**
      * Lua script which allows for an atomic delete on the lock only
@@ -169,7 +171,12 @@ public class JedisLock<T extends JedisCommands & ScriptingCommands> {
     protected synchronized void release(T jedis) {
         if (isLocked()) {
             jedis.del(lockKey);
-            jedis.eval(DELETE_IF_OWNED_LUA_SNIPPET, Arrays.asList(lockKey), Arrays.asList(lockUUID.toString()));
+            if(jedis instanceof Jedis) {
+                ((Jedis) jedis).eval(DELETE_IF_OWNED_LUA_SNIPPET, Arrays.asList(lockKey), Arrays.asList(lockUUID.toString()));
+            }
+            else if(jedis instanceof JedisCluster) {
+                ((JedisCluster) jedis).eval(DELETE_IF_OWNED_LUA_SNIPPET, Arrays.asList(lockKey), Arrays.asList(lockUUID.toString()));
+            }
             this.locked = false;
         }
     }
